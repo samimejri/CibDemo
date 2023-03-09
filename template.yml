@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+
+Resources:
+  CibDemoTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: 'CibDemoTable'
+      AttributeDefinitions:
+        - AttributeName: 'Id'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'Id'
+          KeyType: 'HASH'
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+  CibDemoApi:
+    Type: 'AWS::Serverless::Api'
+    Properties:
+      StageName: 'dev'
+      Name: 'CibDemoApi'
+
+  CibDemoLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CibDemoLambdaDynamoDBRole2
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: CibDemoLambdaDynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:Scan'
+                Resource:
+                  - !GetAtt CibDemoTable.Arn
+
+  CibDemoGetFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: 'CibDemoGetFunction'
+      CodeUri: '.\src\bin\Debug\net6.0\publish'
+      Handler: 'CibDemo::CibDemo.CibDemoLambdaFunction::GetAllFunctionHandler'
+      Role: !GetAtt CibDemoLambdaExecutionRole.Arn
+      Runtime: 'dotnet6'
+      Timeout: 60
+      Events:
+        ApiEvent:
+          Type: 'Api'
+          Properties:
+            RestApiId: !Ref CibDemoApi
+            Path: /get
+            Method: GET
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref CibDemoTable
